@@ -1,6 +1,6 @@
 import { Hero } from "@/components/home/Hero";
 import { AchievementsStrip } from "@/components/home/AchievementsStrip";
-import { MissionSection } from "@/components/home/MissionSection";
+import TeamsPage from "@/components/home/TeamsSection";
 import { Sponsors } from "@/components/home/Sponsors";
 import { JoinSection } from "@/components/home/JoinSection";
 import { FAQ } from "@/components/home/FAQ";
@@ -12,7 +12,7 @@ export default function Home() {
     <div className="flex flex-col gap-16 pb-24">
       <Hero />
       <AchievementsStrip />
-      <MissionSection />
+      <TeamsPage />
       <Sponsors />
       <JoinSection />
       <FAQ />
