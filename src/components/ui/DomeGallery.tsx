@@ -177,6 +177,7 @@ export default function DomeGallery({
   const frameRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const focusedElRef = useRef<HTMLElement | null>(null);
   const originalTilePositionRef = useRef<{
     left: number;
@@ -641,6 +642,10 @@ export default function DomeGallery({
     };
 
     scrim.addEventListener("click", close);
+    const closeBtn = closeButtonRef.current;
+    if (closeBtn) {
+      closeBtn.addEventListener("click", close);
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
@@ -648,6 +653,9 @@ export default function DomeGallery({
 
     return () => {
       scrim.removeEventListener("click", close);
+      if (closeBtn) {
+        closeBtn.removeEventListener("click", close);
+      }
       window.removeEventListener("keydown", onKey);
     };
   }, [enlargeTransitionMs, openedImageBorderRadius, grayscale]);
@@ -850,6 +858,11 @@ export default function DomeGallery({
       pointer-events: all !important;
     }
     
+    .sphere-root[data-enlarging="true"] .close-button {
+      opacity: 1 !important;
+      pointer-events: all !important;
+    }
+    
     @media (max-aspect-ratio: 1/1) {
       .viewer-frame {
         height: auto !important;
@@ -981,7 +994,7 @@ export default function DomeGallery({
                   }
                 >
                   <div
-                    className="item__image absolute block overflow-hidden cursor-pointer bg-gray-200 transition-transform duration-300"
+                    className="item__image absolute block overflow-hidden cursor-pointer bg-transparent transition-transform duration-300"
                     role="button"
                     tabIndex={0}
                     aria-label={it.alt || "Open image"}
@@ -1036,35 +1049,6 @@ export default function DomeGallery({
           </div>
 
           <div
-            className="absolute inset-0 m-auto z-[3] pointer-events-none"
-            style={{
-              backgroundImage: `radial-gradient(rgba(235, 235, 235, 0) 65%, var(--overlay-blur-color, ${overlayBlurColor}) 100%)`,
-            }}
-          />
-
-          <div
-            className="absolute inset-0 m-auto z-[3] pointer-events-none"
-            style={{
-              WebkitMaskImage: `radial-gradient(rgba(235, 235, 235, 0) 70%, var(--overlay-blur-color, ${overlayBlurColor}) 90%)`,
-              maskImage: `radial-gradient(rgba(235, 235, 235, 0) 70%, var(--overlay-blur-color, ${overlayBlurColor}) 90%)`,
-              backdropFilter: "blur(3px)",
-            }}
-          />
-
-          <div
-            className="absolute left-0 right-0 top-0 h-[120px] z-[5] pointer-events-none rotate-180"
-            style={{
-              background: `linear-gradient(to bottom, transparent, var(--overlay-blur-color, ${overlayBlurColor}))`,
-            }}
-          />
-          <div
-            className="absolute left-0 right-0 bottom-0 h-[120px] z-[5] pointer-events-none"
-            style={{
-              background: `linear-gradient(to bottom, transparent, var(--overlay-blur-color, ${overlayBlurColor}))`,
-            }}
-          />
-
-          <div
             ref={viewerRef}
             className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center"
             style={{ padding: "var(--viewer-pad)" }}
@@ -1077,6 +1061,27 @@ export default function DomeGallery({
                 backdropFilter: "blur(3px)",
               }}
             />
+            <button
+              ref={closeButtonRef}
+              className="close-button absolute top-4 right-4 z-50 pointer-events-none opacity-0 transition-opacity duration-300 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white cursor-pointer"
+              aria-label="Close image"
+              type="button"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
             <div
               ref={frameRef}
               className="viewer-frame h-full aspect-square flex"

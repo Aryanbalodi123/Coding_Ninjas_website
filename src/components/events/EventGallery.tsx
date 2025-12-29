@@ -117,7 +117,7 @@ export const EventGallery = () => {
         <DomeGallery
           images={eventImages}
           fit={fit}
-          overlayBlurColor="#060010"
+          overlayBlurColor="transparent"
           grayscale={false}
           imageBorderRadius="20px"
           openedImageBorderRadius="20px"
