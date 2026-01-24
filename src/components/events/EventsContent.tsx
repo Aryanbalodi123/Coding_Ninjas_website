@@ -1,26 +1,31 @@
 "use client";
 
-import { timeline } from "@/data/club";
 import { EventsHero } from "./EventsHero";
-import { StackedTimeline } from "./StackedTimeline";
-import { EventStatistics } from "./EventStatistics";
-import { EventGallery } from "./EventGallery";
+import HorizontalTimeline from "./HorizontalTimeline";
 import {
   UpcomingEventsTeaser,
   UpcomingEventCardData,
 } from "./UpcomingEventsTeaser";
+import { EventStatistics } from "./EventStatistics";
+import { EventGallery } from "./EventGallery";
 
 export const EventsContent = ({
   upcomingEvents,
 }: {
   upcomingEvents: UpcomingEventCardData[];
 }) => (
-  <div className="space-y-16 sm:space-y-20 lg:space-y-24 pb-16 sm:pb-20 lg:pb-24">
+  <div className=" text-white">
+    {/* New 3D Carousel Hero */}
     <EventsHero />
-    <StackedTimeline items={timeline} />
-    <EventStatistics />
+    
+    {/* New Horizontal Timeline */}
+    <HorizontalTimeline />
+        <EventStatistics />
     <EventGallery />
-    <UpcomingEventsTeaser events={upcomingEvents} />
+    {/* Existing Upcoming Events (fetched from server) */}
+    <div className="container-grid pb-16 sm:pb-20 lg:pb-24 pt-20">
+       <UpcomingEventsTeaser events={upcomingEvents} />
+    </div>
   </div>
 );
 
