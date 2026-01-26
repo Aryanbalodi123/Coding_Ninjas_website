@@ -1,6 +1,5 @@
 'use client';
-
-import React, { useState, useRef, useMemo, useEffect, useCallback, memo } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback, memo, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowUpRight } from 'lucide-react';
 
@@ -27,28 +26,36 @@ const FIXED_SPACING = 100;
 const YEAR_LABEL_HEIGHT = 220;
 
 /* ---------------- UTILITIES ---------------- */
+const getSafeYear = (dateStr: string): number | null => {
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  return isNaN(year) ? null : year;
+};
+
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'Date TBD';
   return `${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })}, ${d.getFullYear()}`;
 };
 
+// Image Caching System
 const imageCache = new Map<string, HTMLImageElement>();
-
 const preloadImage = (src: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!src) return resolve();
     if (imageCache.has(src)) {
       resolve();
       return;
     }
-
     const img = new Image();
     img.decoding = 'async';
     img.onload = () => {
       imageCache.set(src, img);
       resolve();
     };
-    img.onerror = () => resolve();
+    img.onerror = () => {
+      resolve();
+    };
     img.src = src;
   });
 };
@@ -66,7 +73,7 @@ const LiveCounterVertical = memo(() => {
   if (!time) return null;
 
   return (
-    <div className="flex gap-4 items-center text-xl font-medium text-white tracking-wider whitespace-nowrap opacity-70 text-xs font-semibold">
+    <div style={{ fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit', whiteSpace: 'nowrap' }}>
       <span>
         {String(time.getHours()).padStart(2, '0')}:
         {String(time.getMinutes()).padStart(2, '0')}:
@@ -85,23 +92,28 @@ const RulerLayer = memo(({ scale, yearRange, yearConfig, yearPositions, totalCon
       zIndex: 10,
       transform: `scale(${scale})`,
       transformOrigin: 'left top',
-      height: '100%'
+      height: '100%',
+      // Ensure the layer is strictly limited to the content width so pointer events pass through correctly
+      width: `${totalContentWidth + PADDING_LEFT + 100}px` 
     }}
   >
     {Array.from({ length: yearRange.end - yearRange.start + 1 }).map((_, i) => {
       const year = yearRange.start + i;
       const config = yearConfig[year];
+      
+      if (!config) return null;
 
       return (
         <div
           key={year}
           className="absolute h-full"
           style={{
-            left: `${PADDING_LEFT + yearPositions[year]}px`,
+            left: `${PADDING_LEFT + (yearPositions[year] || 0)}px`,
             width: `${config.width}px`,
             top: 0
           }}
         >
+          {/* Big Background Year Number */}
           <div className="absolute z-30" style={{ top: 100, left: 0, width: 1 }}>
             <span style={{
               position: 'absolute',
@@ -120,6 +132,7 @@ const RulerLayer = memo(({ scale, yearRange, yearConfig, yearPositions, totalCon
             </span>
           </div>
 
+          {/* Start Marker */}
           {year === yearRange.start && (
             <div className="absolute z-30 flex items-center justify-center" style={{ left: 0, top: YEAR_LABEL_HEIGHT, bottom: 0, width: 1 }}>
               <span style={{
@@ -135,56 +148,119 @@ const RulerLayer = memo(({ scale, yearRange, yearConfig, yearPositions, totalCon
               </span>
             </div>
           )}
-
-          {year !== yearRange.start && (
-            <div className="absolute left-0 w-[2px] border-l-2 border-dashed border-white/30" style={{ top: YEAR_LABEL_HEIGHT, bottom: 32 }} />
-          )}
-
-          <div className="absolute left-0 right-0" style={{
-            top: YEAR_LABEL_HEIGHT,
-            bottom: 32,
-            backgroundImage: `repeating-linear-gradient(to right, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent ${TICK_DENSITY_PX}px)`,
-            backgroundSize: 'auto 100%'
-          }} />
         </div>
       );
     })}
 
-    <div className="absolute h-full" style={{ left: `${PADDING_LEFT + totalContentWidth}px`, top: 0 }}>
-      <div className="absolute z-30" style={{ top: 100, left: 0, width: 1 }}>
-        <span style={{
+    {/* Today Marker Line — FINAL END OF TIMELINE */}
+    <div
+      className="absolute"
+      style={{
+        left: `${PADDING_LEFT + totalContentWidth}px`,
+        top: YEAR_LABEL_HEIGHT,
+        bottom: 32,
+        width: 0,
+        overflow: 'visible'
+      }}
+    >
+      {/* Vertical Line */}
+
+
+      {/* TODAY Header */}
+      <div
+        style={{
           position: 'absolute',
-          left: '50%',
+          top: -120,
+          left: 0,
           transform: 'translateX(-50%)',
-          fontSize: '3.6rem',
+          whiteSpace: 'nowrap',
+          fontSize: '3.2rem',
           fontWeight: 700,
           color: 'rgba(249,115,22,0.9)',
           textShadow: '0 0 28px rgba(249,115,22,0.45)',
-          whiteSpace: 'nowrap',
-        }}>
-          TODAY
+          zIndex: 30,
+        }}
+      >
+        TODAY
+      </div>
+
+      {/* Evenly distributed vertical text */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: '-18px',
+          width: '36px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-evenly',
+          alignItems: 'center',
+          zIndex: 25,
+        }}
+      >
+        <span
+          style={{
+            writingMode: 'vertical-lr',
+            transform: 'rotate(180deg)',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            letterSpacing: '0.2em',
+            color: 'rgba(255,255,255,0.6)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {new Date().toDateString()}
+        </span>
+
+        <span
+          style={{
+            writingMode: 'vertical-lr',
+            transform: 'rotate(180deg)',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            letterSpacing: '0.2em',
+            color: 'rgba(255,255,255,0.9)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <LiveCounterVertical />
+        </span>
+
+        <span
+          style={{
+            writingMode: 'vertical-lr',
+            transform: 'rotate(180deg)',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            letterSpacing: '0.2em',
+            color: 'rgba(249,115,22,0.9)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Coding Ninjas
         </span>
       </div>
-      <div style={{
-        position: 'absolute',
-        left: 0,
-        bottom: 120,
-        width: 1,
-        writingMode: 'vertical-rl',
-        transform: 'translateX(-50%) rotate(180deg)',
-      }} className="flex items-center gap-4 text-sm">
-        <span className="text-white/60 text-xl font-semibold">{new Date().toDateString()}</span>
-        <span className="opacity-30">•</span>
-        <LiveCounterVertical />
-        <span className="opacity-30">•</span>
-        <span className="font-semibold text-orange-400 text-xl">Coding Ninjas</span>
-      </div>
     </div>
+
+    {/* Global Month Lines (Solid) - Start after 2016 */}
+    <div className="absolute left-0" style={{
+      top: YEAR_LABEL_HEIGHT,
+      bottom: 32,
+      left: `${PADDING_LEFT + (yearPositions[yearRange.start] || 0) + (yearConfig[yearRange.start]?.width || BASE_BLOCK_WIDTH)}px`,
+      width: `${totalContentWidth - ((yearPositions[yearRange.start] || 0) + (yearConfig[yearRange.start]?.width || BASE_BLOCK_WIDTH))}px`,
+      backgroundImage: `repeating-linear-gradient(to right, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent ${TICK_DENSITY_PX}px)`,
+      backgroundSize: `${TICK_DENSITY_PX}px 100%`,
+      backgroundPosition: `0px 0`,
+      backgroundRepeat: 'repeat',
+      zIndex: 5,
+      pointerEvents: 'none'
+    }} />
   </div>
 ));
 RulerLayer.displayName = 'RulerLayer';
 
-/* ================= OPTIMIZED CARD ================= */
+/* ================= TIMELINE CARD ================= */
 const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
   const stackImages = (event.galleryLinks || []).slice(0, 2);
   const [isHovered, setIsHovered] = useState(false);
@@ -202,7 +278,6 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
         setImagesLoaded(true);
       }
     };
-    
     checkCache();
   }, [event.poster, stackImages]);
 
@@ -220,13 +295,11 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
           willChange: isHovered ? 'transform, opacity' : undefined,
         }}
         className="w-[320px] h-[360px] relative group transition-transform duration-300 ease-out"
-        data-contain="true"
       >
         <div 
           className={`absolute inset-0 rounded-2xl -z-10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
           style={{ background: isHovered ? 'linear-gradient(135deg, rgba(251,146,60,0.12), rgba(168,85,247,0.06))' : 'transparent' }}
         />
-
         <div 
           className="absolute inset-0 rounded-2xl overflow-hidden bg-[rgba(18,18,18,0.85)] border transition-all duration-300"
           style={{
@@ -234,12 +307,11 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
             boxShadow: isHovered ? '0 20px 50px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.45)'
           }}
         />
-
         <div className="relative z-10 h-full p-5 flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <span 
-              className="text-[10px] uppercase tracking-[0.4em] font-semibold"
-              style={{ color: isHovered ? 'rgba(253,186,116,0.6)' : 'rgba(255,255,255,0.45)' }}
+              className="text-[11px] uppercase tracking-[0.5em] font-semibold"
+              style={{ color: isHovered ? 'rgba(253,186,116,0.8)' : 'rgba(255,255,255,0.55)' }}
             >
               {formatDate(event.date)}
             </span>
@@ -252,9 +324,8 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
               }}
             />
           </div>
-
-          <h3 className="text-[18px] font-bold leading-[1.2] line-clamp-2" style={{ color: 'white' }}>{event.name}</h3>
-
+          <h3 className="text-[20px] font-bold leading-[1.3] line-clamp-2 tracking-wide" style={{ color: 'white' }}>{event.name}</h3>
+          
           <div className="relative flex-1 mt-2">
             {imagesLoaded ? (
               <>
@@ -269,18 +340,10 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
                         : 'scale(0.85)',
                     }}
                   >
-                    <img 
-                      src={img} 
-                      decoding="async" 
-                      loading="lazy" 
-                      className="w-full h-full object-cover" 
-                      alt=""
-                      style={{ display: 'block' }}
-                    />
+                    <img src={img} className="w-full h-full object-cover" alt="" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   </div>
                 ))}
-
                 <div
                   className="absolute inset-0 rounded-xl overflow-hidden transition-transform duration-400"
                   style={{
@@ -288,14 +351,7 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
                     boxShadow: isHovered ? '0 12px 40px rgba(0,0,0,0.55)' : 'none'
                   }}
                 >
-                  <img 
-                    src={event.poster} 
-                    decoding="async" 
-                    loading="eager" 
-                    className="w-full h-full object-cover" 
-                    alt=""
-                    style={{ display: 'block' }}
-                  />
+                  <img src={event.poster} className="w-full h-full object-cover" alt="" />
                   <div 
                     className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
                     style={{ opacity: isHovered ? 1 : 0 }}
@@ -306,9 +362,9 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
               <div className="absolute inset-0 rounded-xl bg-white/5 animate-pulse" />
             )}
           </div>
-
+          
           <div 
-            className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-orange-500/10 to-orange-600/10 backdrop-blur-sm border border-orange-400/12 text-[10px] font-bold tracking-[0.15em] uppercase text-orange-300 transition-all"
+            className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-500/10 to-orange-600/10 backdrop-blur-sm border border-orange-400/12 text-[11px] font-bold tracking-[0.2em] uppercase text-orange-300 transition-all"
             style={{
               opacity: isHovered ? 1 : 0,
               transform: isHovered ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.96)'
@@ -328,7 +384,7 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
 });
 TimelineEventCard.displayName = 'TimelineEventCard';
 
-/* ================= EXPANDED OVERLAY ================= */
+/* ================= OVERLAY ================= */
 const ExpandedCardOverlay = memo(({ event, onClose }: { event: TimelineEvent, onClose: () => void }) => {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -344,7 +400,6 @@ const ExpandedCardOverlay = memo(({ event, onClose }: { event: TimelineEvent, on
         onClick={onClose}
         className="absolute inset-0 bg-black/90 backdrop-blur-md"
       />
-
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -356,7 +411,7 @@ const ExpandedCardOverlay = memo(({ event, onClose }: { event: TimelineEvent, on
         <button onClick={onClose} className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-white/10 rounded-full border border-white/10 transition-colors group">
           <X className="w-5 h-5 text-white/70 group-hover:text-white" />
         </button>
-
+        {/* Left Column: Text Info */}
         <div className="w-full md:w-5/12 bg-gradient-to-b from-[#111] to-black flex flex-col">
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 md:p-12 overscroll-contain">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -377,13 +432,12 @@ const ExpandedCardOverlay = memo(({ event, onClose }: { event: TimelineEvent, on
             </motion.div>
           </div>
         </div>
-
+        {/* Right Column: Gallery */}
         <div className="w-full md:w-7/12 border-l border-white/5 flex flex-col">
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 md:p-8 overscroll-contain">
-            <div className="flex flex-col gap-6">
+             <div className="flex flex-col gap-6">
               <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/10 relative group shrink-0">
                 <img src={event.poster} className="w-full h-full object-cover" alt="" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               {event.galleryLinks?.map((link, i) => (
                 <motion.div
@@ -412,23 +466,18 @@ export default function HorizontalTimeline() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visibleRange, setVisibleRange] = useState({ start: -1000, end: 10000 });
-
+  
+  const [visibleRange, setVisibleRange] = useState({ start: -Infinity, end: Infinity });
+  
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const lastScrollRef = useRef(0);
    
   const [windowWidth, setWindowWidth] = useState(() => 
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
    
-  const [scale, setScale] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-       return Math.min(1, Math.max(0.55, window.innerWidth / 1600));
-    }
-    return 1;
-  });
+  const [scale, setScale] = useState<number>(1);
 
+  // Fetch Events
   useEffect(() => {
     let mounted = true;
     const fetchEvents = async () => {
@@ -450,37 +499,37 @@ export default function HorizontalTimeline() {
     return () => { mounted = false; };
   }, []);
 
+  // Handle Resize and Scale
   useEffect(() => {
-    let timeoutId: any;
-    const onResize = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          const w = window.innerWidth;
-          setWindowWidth(w);
-          setScale(Math.min(1, Math.max(0.55, w / 1600)));
-        }
-      }, 120);
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      const w = window.innerWidth;
+      setWindowWidth(w);
+      setScale(Math.min(1, Math.max(0.55, w / 1600)));
     };
-    
-    window.addEventListener('resize', onResize);
-    return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('resize', onResize);
-    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  /* --- Logic for Year Ranges and Positions --- */
   const yearRange = useMemo(() => {
     if (events.length === 0) return { start: START_YEAR, end: END_YEAR };
-    const years = events.map((e) => new Date(e.date).getFullYear());
-    return { start: Math.min(START_YEAR, ...years), end: Math.max( ...years) };
+    const years = events.map((e) => getSafeYear(e.date)).filter((y): y is number => y !== null);
+    if (years.length === 0) return { start: START_YEAR, end: END_YEAR };
+    return { start: Math.min(START_YEAR, ...years), end: Math.max(END_YEAR, ...years) };
   }, [events]);
 
   const eventsByYear = useMemo(() => {
     const map: Record<number, TimelineEvent[]> = {};
     for (let y = yearRange.start; y <= yearRange.end; y++) map[y] = [];
     const sorted = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    sorted.forEach(e => map[new Date(e.date).getFullYear()]?.push(e));
+    sorted.forEach(e => {
+      const year = getSafeYear(e.date);
+      if (year) { if (!map[year]) map[year] = []; map[year].push(e); }
+    });
     return map;
   }, [events, yearRange]);
 
@@ -490,10 +539,7 @@ export default function HorizontalTimeline() {
       const count = eventsByYear[y]?.length || 0;
       const requiredWidth = (count * CARD_WIDTH) + (Math.max(0, count - 1) * FIXED_SPACING) + (YEAR_SIDE_PADDING * 2);
       const finalWidth = Math.max(BASE_BLOCK_WIDTH, requiredWidth);
-      cfg[y] = {
-        width: finalWidth,
-        tickCount: Math.max(5, Math.floor(finalWidth / TICK_DENSITY_PX))
-      };
+      cfg[y] = { width: finalWidth, tickCount: Math.max(5, Math.floor(finalWidth / TICK_DENSITY_PX)) };
     }
     return cfg;
   }, [eventsByYear, yearRange]);
@@ -513,11 +559,9 @@ export default function HorizontalTimeline() {
     const AC_OFFSET = 80;
     const TOP_CENTER = 400;
     let globalIndex = 0;
-
     for (let y = yearRange.start; y <= yearRange.end; y++) {
       const yearEvents = eventsByYear[y] || [];
       const startX = PADDING_LEFT + (yearPositions[y] || 0) + YEAR_SIDE_PADDING;
-
       yearEvents.forEach((e, i) => {
         positions[e._id] = {
           left: startX + i * (CARD_WIDTH + FIXED_SPACING),
@@ -541,6 +585,7 @@ export default function HorizontalTimeline() {
     return (windowWidth - scaledWidth) / 2;
   }, [totalContentWidth, scale, windowWidth]);
 
+  // --- VIRTUALIZATION LOGIC ---
   const updateVisibleRange = useCallback(() => {
     if (!containerRef.current) return;
     
@@ -548,46 +593,37 @@ export default function HorizontalTimeline() {
     const scrollLeft = container.scrollLeft;
     const viewportWidth = container.clientWidth;
     
+    if (viewportWidth === 0) return;
+
     const buffer = Math.max(1200, viewportWidth * 1.5);
-    const start = Math.max(0, (scrollLeft - buffer) / scale);
-    const end = (scrollLeft + viewportWidth + buffer) / scale;
+    const scaledStart = (scrollLeft - (PADDING_LEFT + centeringOffset)) / scale - buffer;
+    const scaledEnd = (scrollLeft + viewportWidth - (PADDING_LEFT + centeringOffset)) / scale + buffer;
     
     setVisibleRange((prev) => {
-      if (Math.abs(prev.start - start) > 100 || Math.abs(prev.end - end) > 100) {
-        return { start, end };
+      if (prev.start === -Infinity || Math.abs(prev.start - scaledStart) > 200 || Math.abs(prev.end - scaledEnd) > 200) {
+        return { start: scaledStart, end: scaledEnd };
       }
       return prev;
     });
-  }, [scale]);
+  }, [scale, centeringOffset]);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-        updateVisibleRange();
-    }, 100); 
-    return () => clearTimeout(t);
-  }, [totalContentWidth, loading, scale, updateVisibleRange]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const onScroll = () => {
-      lastScrollRef.current = container.scrollLeft;
-      if (rafRef.current == null) {
-        rafRef.current = requestAnimationFrame(() => {
-          updateVisibleRange();
-          if (rafRef.current != null) {
-            cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-          }
-        });
-      }
-    };
+    const resizeObserver = new ResizeObserver(() => {
+      updateVisibleRange();
+    });
 
-    container.addEventListener('scroll', onScroll, { passive: true });
+    resizeObserver.observe(container);
+    container.addEventListener('scroll', updateVisibleRange, { passive: true });
+    
+    const t = setTimeout(updateVisibleRange, 100);
+
     return () => {
-      container.removeEventListener('scroll', onScroll);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      resizeObserver.disconnect();
+      container.removeEventListener('scroll', updateVisibleRange);
+      clearTimeout(t);
     };
   }, [updateVisibleRange]);
 
@@ -602,9 +638,11 @@ export default function HorizontalTimeline() {
   }, [events]);
 
   const visibleEventIds = useMemo(() => {
-    const ids: string[] = [];
-    if(visibleRange.end < 0) return ids;
+    if (visibleRange.start === -Infinity) {
+       return events.map(e => e._id);
+    }
 
+    const ids: string[] = [];
     for (const e of events) {
       const pos = eventPositions[e._id];
       if (!pos) continue;
@@ -618,14 +656,16 @@ export default function HorizontalTimeline() {
     return ids;
   }, [events, eventPositions, visibleRange]);
 
+  // Preloading
   useEffect(() => {
     if (!visibleEventIds || visibleEventIds.length === 0) return;
     const idsToPreload = visibleEventIds.slice(0, 8); 
     const imagesToLoad: string[] = [];
     for (const id of idsToPreload) {
-      const ev = events.find((x) => x._id === id);
+      const ev = eventsById[id];
       if (!ev) continue;
-      imagesToLoad.push(ev.poster, ...(ev.galleryLinks?.slice(0, 2) || []));
+      if (ev.poster) imagesToLoad.push(ev.poster);
+      if (ev.galleryLinks) imagesToLoad.push(...ev.galleryLinks.slice(0, 2));
     }
     let mounted = true;
     (async () => {
@@ -635,7 +675,7 @@ export default function HorizontalTimeline() {
       }
     })();
     return () => { mounted = false; };
-  }, [visibleEventIds, events]);
+  }, [visibleEventIds, eventsById]);
 
   if (loading) return <div className="h-[850px] flex items-center justify-center text-white">Loading events...</div>;
   if (error) return <div className="h-[850px] flex items-center justify-center text-red-400">{error}</div>;
@@ -643,23 +683,21 @@ export default function HorizontalTimeline() {
   return (
     <div className="relative w-full overflow-hidden">
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+        .custom-scrollbar { scrollbar-width: none; }
+        .custom-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
-
       <div className="h-[850px] w-full relative z-0">
         <div ref={containerRef} className="relative h-full overflow-x-auto overflow-y-hidden custom-scrollbar">
           <div
             className="relative h-full"
             style={{
-              width: `${totalContentWidth + PADDING_LEFT * 2}px`,
-              paddingLeft: `${PADDING_LEFT + centeringOffset}px`,
-              paddingRight: `${PADDING_LEFT + centeringOffset}px`,
+              // FIXED: The width is now multiplied by scale to match visual content size.
+              // Added 50px buffer so the "TODAY" label isn't cut off.
+              width: `${((totalContentWidth + PADDING_LEFT) * scale) + 50}px`,
+              // Margin ensures that if the content is smaller than screen, it centers.
+              margin: '0 auto', 
             }}
           >
-            {/* RULER LAYER */}
             <RulerLayer
               scale={scale}
               yearRange={yearRange}
@@ -667,8 +705,6 @@ export default function HorizontalTimeline() {
               yearPositions={yearPositions}
               totalContentWidth={totalContentWidth}
             />
-
-            {/* EVENTS LAYER */}
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
               <div className="relative w-full h-full origin-top-left" style={{ transform: `scale(${scale})`, transformOrigin: 'left top' }}>
                 {visibleEventIds.map((id) => {
@@ -690,7 +726,6 @@ export default function HorizontalTimeline() {
           </div>
         </div>
       </div>
-
       <AnimatePresence>
         {selectedEvent && (
           <ExpandedCardOverlay
