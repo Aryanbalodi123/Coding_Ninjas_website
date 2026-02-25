@@ -109,7 +109,12 @@ export const Header = () => {
     // clear any local storage we use for hiring flow
     try {
       localStorage.removeItem("selectedRole");
-    } catch {}
+    } catch { }
+
+    // clear the auth session cache so fetchMe doesn't restore stale user
+    try {
+      sessionStorage.removeItem("auth_cache");
+    } catch { }
 
     // update UI
     setUser(null);

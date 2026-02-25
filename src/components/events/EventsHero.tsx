@@ -34,15 +34,15 @@ const eventImages = [
   { src: "/images/pastEvents/W9ersYUUwXSs37RqhEDFFj0sQq23-IMG_6479 (1) (Custom).jpg-443543a9-1156-4395-9b26-bd3d5ef0423b", alt: "Tech talk", title: "Future Tech", date: "Apr 15" },
 ];
 
-const CarouselItem = React.memo(({ 
-  item, 
-  index, 
-  angle, 
-  radius, 
-  isPressed, 
-  isMobile, 
-  setHoveredIndex, 
-  hoveredIndex 
+const CarouselItem = React.memo(({
+  item,
+  index,
+  angle,
+  radius,
+  isPressed,
+  isMobile,
+  setHoveredIndex,
+  hoveredIndex
 }: any) => {
   const handleMouseEnter = useCallback(() => {
     if (!isPressed) setHoveredIndex(index);
@@ -56,8 +56,8 @@ const CarouselItem = React.memo(({
     <div
       className="absolute flex items-center justify-center backface-visible"
       style={{
-        width: `${IMAGE_WIDTH}px`,
-        height: `${IMAGE_HEIGHT}px`,
+        width: isMobile ? '340px' : `${IMAGE_WIDTH}px`,
+        height: isMobile ? '213px' : `${IMAGE_HEIGHT}px`,
         transformStyle: "preserve-3d",
         willChange: "transform",
         transform: `rotateY(${angle + 180}deg) translateZ(-${radius}px)`,
@@ -75,6 +75,9 @@ const CarouselItem = React.memo(({
             src={item.src}
             alt={item.alt}
             decoding="async"
+            loading={index === 0 ? undefined : "lazy"}
+            // @ts-ignore – fetchpriority is a valid HTML attribute
+            fetchpriority={index === 0 ? "high" : "low"}
             className="h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-100 pointer-events-none select-none"
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
@@ -136,7 +139,7 @@ export function EventsHero() {
   const cursorRef = useRef<HTMLDivElement>(null);
 
   const rotationRef = useRef(0);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
   const speedRef = useRef(BASE_SPEED);
   const isPressedRef = useRef(false);
 
@@ -152,9 +155,11 @@ export function EventsHero() {
   const smoothY = useSpring(mouseY, { damping: 15, stiffness: 100 });
 
   const radius = useMemo(() => {
-    const circumference = eventImages.length * (IMAGE_WIDTH + GAP);
+    // Use responsive dimensions for mobile with slight spacing adjustment
+    const imageWidth = isMobile ? 340 : IMAGE_WIDTH;
+    const circumference = eventImages.length * (imageWidth + GAP);
     return circumference / (2 * Math.PI);
-  }, []);
+  }, [isMobile]);
 
   const textX = useTransform(smoothX, [-0.5, 0.5], ["-30px", "30px"]);
   const textY = useTransform(smoothY, [-0.5, 0.5], ["-30px", "30px"]);
@@ -170,18 +175,48 @@ export function EventsHero() {
     checkMobile();
     window.addEventListener("resize", checkMobile);
 
+    let rafPending = false;
+    let pendingX = 0, pendingY = 0;
+
     const handleWindowMouseMove = (e: MouseEvent) => {
       if (cursorRef.current) {
         cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
       }
       const { innerWidth, innerHeight } = window;
-      mouseX.set(e.clientX / innerWidth - 0.5);
-      mouseY.set(e.clientY / innerHeight - 0.5);
+      pendingX = e.clientX / innerWidth - 0.5;
+      pendingY = e.clientY / innerHeight - 0.5;
+      if (!rafPending) {
+        rafPending = true;
+        requestAnimationFrame(() => {
+          mouseX.set(pendingX);
+          mouseY.set(pendingY);
+          rafPending = false;
+        });
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const { innerWidth, innerHeight } = window;
+        pendingX = touch.clientX / innerWidth - 0.5;
+        pendingY = touch.clientY / innerHeight - 0.5;
+        if (!rafPending) {
+          rafPending = true;
+          requestAnimationFrame(() => {
+            mouseX.set(pendingX);
+            mouseY.set(pendingY);
+            rafPending = false;
+          });
+        }
+      }
     };
 
     window.addEventListener("mousemove", handleWindowMouseMove, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
     return () => {
       window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("resize", checkMobile);
     };
   }, [mouseX, mouseY]);
@@ -194,13 +229,13 @@ export function EventsHero() {
 
       const targetSpeed = isPressedRef.current ? FAST_SPEED : BASE_SPEED;
       speedRef.current += (targetSpeed - speedRef.current) * 0.05;
-      
+
       rotationRef.current += speedRef.current;
 
       if (containerRef.current) {
         containerRef.current.style.transform = `translateZ(${radius}px) rotateY(${rotationRef.current}deg)`;
       }
-      
+
       requestRef.current = requestAnimationFrame(animate);
     };
 
@@ -230,7 +265,7 @@ export function EventsHero() {
 
   return (
     <section
-      className="events-cursor-area relative h-[100vh] w-full overflow-hidden perspective-container -mt-36 sm:-mt-36 lg:-mt-32"
+      className="events-cursor-area relative h-[60vh] md:h-[100vh] w-full overflow-hidden perspective-container -mt-36 sm:-mt-36 lg:-mt-32"
       style={{ cursor: isMobile ? "auto" : "none" }}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
@@ -239,48 +274,7 @@ export function EventsHero() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {!isMobile && (
-        <div
-          ref={cursorRef}
-          className="fixed top-0 left-0 z-[10000] pointer-events-none will-change-transform"
-          style={{ transform: "translate3d(-100px, -100px, 0)" }}
-        >
-          <AnimatePresence>
-            {isHovering && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                  width: isPressed ? 40 : 100,
-                  height: isPressed ? 40 : 100,
-                  backgroundColor: isPressed ? ORANGE_HEX : `rgba(${ORANGE_RGB}, 0.15)`,
-                }}
-                exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.15 } }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className={`flex items-center justify-center rounded-full border border-[rgba(${ORANGE_RGB},0.5)] shadow-[0_0_25px_rgba(${ORANGE_RGB},0.3)] backdrop-blur-[4px]`}
-              >
-                <AnimatePresence>
-                  {!isPressed && (
-                    <motion.span
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{
-                        opacity: 1,
-                        scale: 1,
-                        color: isPressed ? "#ffffff" : ORANGE_HEX,
-                      }}
-                      exit={{ opacity: 0, scale: 0, transition: { duration: 0.1 } }}
-                      className="text-[12px] font-black tracking-widest select-none whitespace-nowrap"
-                    >
-                      PRESS
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+
 
       {/* TEXT LAYER */}
       <motion.div
@@ -300,7 +294,7 @@ export function EventsHero() {
             letterSpacing: isPressed ? "10px" : "-4px",
           }}
           transition={{ type: "spring", damping: 15, stiffness: 150 }}
-          className="text-[11vw] leading-none font-black select-none"
+          className="text-[18vw] md:text-[11vw] leading-none font-black select-none"
           style={{
             color: "rgba(255, 255, 255, 0.75)",
             WebkitTextStroke: "2px rgba(255, 255, 255, 0.9)",
@@ -317,7 +311,7 @@ export function EventsHero() {
             y: isPressed ? 10 : 0,
           }}
           transition={{ type: "spring", damping: 15, stiffness: 150 }}
-          className="text-white/60 text-lg md:text-xl font-medium tracking-wider select-none"
+          className="text-white/60 text-base md:text-xl font-medium tracking-wider select-none"
           style={{
             textShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
           }}
@@ -338,7 +332,7 @@ export function EventsHero() {
         >
           <div
             ref={containerRef}
-            className="preserve-3d relative flex h-[600px] w-full items-center justify-center will-change-transform"
+            className="preserve-3d relative flex h-[400px] md:h-[600px] w-full items-center justify-center will-change-transform"
           >
             {eventImages.map((item, index) => {
               const angle = (360 / eventImages.length) * index;
@@ -360,40 +354,7 @@ export function EventsHero() {
         </motion.div>
       </div>
 
-      {/* MOBILE TOOLTIP */}
-      <AnimatePresence>
-        {isMobile && !hasInteracted && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20, transition: { duration: 0.3 } }}
-            transition={{ delay: 0.5, type: "spring", stiffness: 200, damping: 20 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                className="text-white/40 text-sm"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </motion.div>
-              <div className="flex items-center gap-3 px-5 py-3 rounded-full bg-black/40 border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="w-2 h-2 rounded-full bg-[#ff6d00] shadow-[0_0_10px_#ff6d00]"
-                />
-                <span className="text-white text-sm font-semibold tracking-wide">
-                  Tap & Hold to Speed Up
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       <style jsx>{`
         .perspective-container { perspective: 1200px; }

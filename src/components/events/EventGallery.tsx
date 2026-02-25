@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { SectionTitle } from "@/components/ui/SectionTitle";
-import DomeGallery from "@/components/ui/DomeGallery";
+import { useState, useEffect, lazy, Suspense, useRef } from "react";
+import { motion, useInView } from "framer-motion";
+
+// Lazy-load the heavy 3D globe — only imported when the section scrolls into view
+const DomeGallery = lazy(() => import("@/components/ui/DomeGallery"));
 
 const eventImages = [
   {
@@ -86,18 +88,26 @@ const eventImages = [
 export const EventGallery = () => {
   const [fit, setFit] = useState(0.5);
   const [imageSize, setImageSize] = useState({ width: "80vw", height: "80vw" });
+  const [minRadius, setMinRadius] = useState(600);
+
+  // Only mount DomeGallery once the section is visible in the viewport
+  const sectionRef = useRef<HTMLElement>(null);
+  const isInView = useInView(sectionRef, { once: true, margin: "0px 0px -100px 0px" });
 
   useEffect(() => {
     const updateSettings = () => {
       if (window.innerWidth < 640) {
-        setFit(0.5); // Mobile
+        setFit(0.25);
         setImageSize({ width: "85vw", height: "85vw" });
+        setMinRadius(450);
       } else if (window.innerWidth < 1024) {
-        setFit(0.55); // Tablet
+        setFit(0.55);
         setImageSize({ width: "500px", height: "500px" });
+        setMinRadius(400);
       } else {
-        setFit(0.6); // Desktop
+        setFit(0.6);
         setImageSize({ width: "550px", height: "550px" });
+        setMinRadius(600);
       }
     };
 
@@ -107,23 +117,48 @@ export const EventGallery = () => {
   }, []);
 
   return (
-    <section className="container-grid space-y-8 md:space-y-12">
-      <SectionTitle
-        eyebrow="Gallery"
-        title="Moments from Our Events"
-        description="Capturing the energy, innovation, and community spirit at our gatherings."
-      />
+    <section ref={sectionRef} className="container-grid space-y-8 md:space-y-12 py-8 md:py-16">
+
+      {/* ── NEW HEADING ── */}
+      <div className="relative text-center z-20">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.0, ease: "easeOut" }}
+        >
+          <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter uppercase">
+            EVENT <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff6d00] to-amber-500">GALLERY</span>
+          </h2>
+
+          <div className="mt-6 flex flex-col items-center opacity-90">
+            <p className="text-sm md:text-base font-medium tracking-[0.3em] text-neutral-400 uppercase">
+              CAPTURING THE MOMENTS
+            </p>
+
+            {/* Decorative Laser Line */}
+            <div className="mt-4 h-px w-24 bg-gradient-to-r from-transparent via-[#ff6d00] to-transparent opacity-80 shadow-[0_0_10px_#ff6d00]" />
+          </div>
+        </motion.div>
+      </div>
+
       <div className="w-full h-[60vh] min-h-[400px] max-h-[500px] sm:h-[65vh] sm:min-h-[450px] sm:max-h-[650px] md:h-[70vh] md:min-h-[500px] md:max-h-[800px]">
-        <DomeGallery
-          images={eventImages}
-          fit={fit}
-          overlayBlurColor="transparent"
-          grayscale={false}
-          imageBorderRadius="20px"
-          openedImageBorderRadius="20px"
-          openedImageWidth={imageSize.width}
-          openedImageHeight={imageSize.height}
-        />
+        {/* DomeGallery only mounts once this section scrolls near the viewport */}
+        {isInView && (
+          <Suspense fallback={<div className="w-full h-full bg-white/5 animate-pulse rounded-2xl" />}>
+            <DomeGallery
+              images={eventImages}
+              fit={fit}
+              minRadius={minRadius}
+              overlayBlurColor="transparent"
+              grayscale={false}
+              imageBorderRadius="20px"
+              openedImageBorderRadius="20px"
+              openedImageWidth={imageSize.width}
+              openedImageHeight={imageSize.height}
+            />
+          </Suspense>
+        )}
       </div>
     </section>
   );

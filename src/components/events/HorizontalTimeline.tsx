@@ -93,14 +93,13 @@ const RulerLayer = memo(({ scale, yearRange, yearConfig, yearPositions, totalCon
       transform: `scale(${scale})`,
       transformOrigin: 'left top',
       height: '100%',
-      // Ensure the layer is strictly limited to the content width so pointer events pass through correctly
-      width: `${totalContentWidth + PADDING_LEFT + 100}px` 
+      width: `${totalContentWidth + PADDING_LEFT + 100}px`
     }}
   >
     {Array.from({ length: yearRange.end - yearRange.start + 1 }).map((_, i) => {
       const year = yearRange.start + i;
       const config = yearConfig[year];
-      
+
       if (!config) return null;
 
       return (
@@ -152,7 +151,7 @@ const RulerLayer = memo(({ scale, yearRange, yearConfig, yearPositions, totalCon
       );
     })}
 
-    {/* Today Marker Line — FINAL END OF TIMELINE */}
+    {/* Today Marker Line */}
     <div
       className="absolute"
       style={{
@@ -163,9 +162,6 @@ const RulerLayer = memo(({ scale, yearRange, yearConfig, yearPositions, totalCon
         overflow: 'visible'
       }}
     >
-      {/* Vertical Line */}
-
-
       {/* TODAY Header */}
       <div
         style={{
@@ -243,19 +239,28 @@ const RulerLayer = memo(({ scale, yearRange, yearConfig, yearPositions, totalCon
       </div>
     </div>
 
-    {/* Global Month Lines (Solid) - Start after 2016 */}
-    <div className="absolute left-0" style={{
-      top: YEAR_LABEL_HEIGHT,
-      bottom: 32,
-      left: `${PADDING_LEFT + (yearPositions[yearRange.start] || 0) + (yearConfig[yearRange.start]?.width || BASE_BLOCK_WIDTH)}px`,
-      width: `${totalContentWidth - ((yearPositions[yearRange.start] || 0) + (yearConfig[yearRange.start]?.width || BASE_BLOCK_WIDTH))}px`,
-      backgroundImage: `repeating-linear-gradient(to right, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent ${TICK_DENSITY_PX}px)`,
-      backgroundSize: `${TICK_DENSITY_PX}px 100%`,
-      backgroundPosition: `0px 0`,
-      backgroundRepeat: 'repeat',
-      zIndex: 5,
-      pointerEvents: 'none'
-    }} />
+    {/* Global Month Lines (Solid) */}
+    <div
+      className="absolute left-0"
+      style={{
+        top: YEAR_LABEL_HEIGHT,
+        bottom: 32,
+        left: `${PADDING_LEFT}px`,
+        width: `${totalContentWidth}px`,
+        backgroundImage: `repeating-linear-gradient(
+      to right,
+      rgba(255,255,255,0.08) 0px,
+      rgba(255,255,255,0.08) 1px,
+      transparent 1px,
+      transparent ${TICK_DENSITY_PX}px
+    )`,
+        backgroundSize: `${TICK_DENSITY_PX}px 100%`,
+        backgroundRepeat: 'repeat',
+        zIndex: 5,
+        pointerEvents: 'none'
+      }}
+    />
+
   </div>
 ));
 RulerLayer.displayName = 'RulerLayer';
@@ -270,11 +275,11 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
     const checkCache = async () => {
       const allUrls = [event.poster, ...stackImages];
       const allCached = allUrls.every(url => imageCache.has(url));
-      
+
       if (allCached) {
         setImagesLoaded(true);
       } else {
-        await Promise.all(allUrls.map(url => preloadImage(url).catch(() => {})));
+        await Promise.all(allUrls.map(url => preloadImage(url).catch(() => { })));
         setImagesLoaded(true);
       }
     };
@@ -282,25 +287,25 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
   }, [event.poster, stackImages]);
 
   return (
-    <div 
+    <div
       className="absolute pointer-events-auto cursor-pointer timeline-card"
       style={{ left: 0, top: 0 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onClick(event)}
     >
-      <div 
+      <div
         style={{
           transform: `translate3d(${left}px, ${top}px, 0)`,
           willChange: isHovered ? 'transform, opacity' : undefined,
         }}
         className="w-[320px] h-[360px] relative group transition-transform duration-300 ease-out"
       >
-        <div 
+        <div
           className={`absolute inset-0 rounded-2xl -z-10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
           style={{ background: isHovered ? 'linear-gradient(135deg, rgba(251,146,60,0.12), rgba(168,85,247,0.06))' : 'transparent' }}
         />
-        <div 
+        <div
           className="absolute inset-0 rounded-2xl overflow-hidden bg-[rgba(18,18,18,0.85)] border transition-all duration-300"
           style={{
             borderColor: isHovered ? 'rgba(251,146,60,0.18)' : 'rgba(255,255,255,0.06)',
@@ -309,23 +314,23 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
         />
         <div className="relative z-10 h-full p-5 flex flex-col gap-3">
           <div className="flex items-center gap-3">
-            <span 
+            <span
               className="text-[11px] uppercase tracking-[0.5em] font-semibold"
               style={{ color: isHovered ? 'rgba(253,186,116,0.8)' : 'rgba(255,255,255,0.55)' }}
             >
               {formatDate(event.date)}
             </span>
-            <div 
+            <div
               className="flex-1 h-[1px] bg-gradient-to-r"
               style={{
-                backgroundImage: isHovered 
+                backgroundImage: isHovered
                   ? 'linear-gradient(to right, rgba(251,146,60,0.12), transparent)'
                   : 'linear-gradient(to right, rgba(255,255,255,0.06), transparent)'
               }}
             />
           </div>
           <h3 className="text-[20px] font-bold leading-[1.3] line-clamp-2 tracking-wide" style={{ color: 'white' }}>{event.name}</h3>
-          
+
           <div className="relative flex-1 mt-2">
             {imagesLoaded ? (
               <>
@@ -335,12 +340,12 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
                     className="absolute inset-0 rounded-xl overflow-hidden transition-transform duration-500 ease-out"
                     style={{
                       opacity: isHovered ? 1 : 0,
-                      transform: isHovered 
+                      transform: isHovered
                         ? `scale(1) ${idx === 0 ? 'rotate(-6deg) translate(-40px, -16px)' : 'rotate(6deg) translate(40px, -16px)'}`
                         : 'scale(0.85)',
                     }}
                   >
-                    <img src={img} className="w-full h-full object-cover" alt="" />
+                    <img src={img} loading="lazy" className="w-full h-full object-cover" alt="" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   </div>
                 ))}
@@ -351,8 +356,8 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
                     boxShadow: isHovered ? '0 12px 40px rgba(0,0,0,0.55)' : 'none'
                   }}
                 >
-                  <img src={event.poster} className="w-full h-full object-cover" alt="" />
-                  <div 
+                  <img src={event.poster} loading="lazy" className="w-full h-full object-cover" alt="" />
+                  <div
                     className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
                     style={{ opacity: isHovered ? 1 : 0 }}
                   />
@@ -362,8 +367,8 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
               <div className="absolute inset-0 rounded-xl bg-white/5 animate-pulse" />
             )}
           </div>
-          
-          <div 
+
+          <div
             className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-500/10 to-orange-600/10 backdrop-blur-sm border border-orange-400/12 text-[11px] font-bold tracking-[0.2em] uppercase text-orange-300 transition-all"
             style={{
               opacity: isHovered ? 1 : 0,
@@ -379,8 +384,8 @@ const TimelineEventCard = memo(({ event, left, top, onClick }: any) => {
   );
 }, (prevProps, nextProps) => {
   return prevProps.event._id === nextProps.event._id &&
-         prevProps.left === nextProps.left &&
-         prevProps.top === nextProps.top;
+    prevProps.left === nextProps.left &&
+    prevProps.top === nextProps.top;
 });
 TimelineEventCard.displayName = 'TimelineEventCard';
 
@@ -411,8 +416,8 @@ const ExpandedCardOverlay = memo(({ event, onClose }: { event: TimelineEvent, on
         <button onClick={onClose} className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-white/10 rounded-full border border-white/10 transition-colors group">
           <X className="w-5 h-5 text-white/70 group-hover:text-white" />
         </button>
-        {/* Left Column: Text Info */}
-        <div className="w-full md:w-5/12 bg-gradient-to-b from-[#111] to-black flex flex-col">
+        {/* Left Column: Text Info (Fix: Added h-1/2 md:h-full for mobile scrolling) */}
+        <div className="w-full md:w-5/12 bg-gradient-to-b from-[#111] to-black flex flex-col h-1/2 md:h-full">
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8 md:p-12 overscroll-contain">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <p className="text-xs tracking-[0.3em] uppercase text-orange-500 font-mono mb-6 flex items-center gap-3">
@@ -432,10 +437,10 @@ const ExpandedCardOverlay = memo(({ event, onClose }: { event: TimelineEvent, on
             </motion.div>
           </div>
         </div>
-        {/* Right Column: Gallery */}
-        <div className="w-full md:w-7/12 border-l border-white/5 flex flex-col">
+        {/* Right Column: Gallery (Fix: Added h-1/2 md:h-full for mobile scrolling) */}
+        <div className="w-full md:w-7/12 border-l border-white/5 flex flex-col h-1/2 md:h-full">
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 md:p-8 overscroll-contain">
-             <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6">
               <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/10 relative group shrink-0">
                 <img src={event.poster} className="w-full h-full object-cover" alt="" />
               </div>
@@ -466,21 +471,21 @@ export default function HorizontalTimeline() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [visibleRange, setVisibleRange] = useState({ start: -Infinity, end: Infinity });
-  
+
   const containerRef = useRef<HTMLDivElement | null>(null);
-   
-  const [windowWidth, setWindowWidth] = useState(() => 
+
+  const [windowWidth, setWindowWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
-   
+
   const [scale, setScale] = useState<number>(1);
 
-  // Fetch Events
+  // Fetch Events — deferred to browser idle time to avoid competing with hero images
   useEffect(() => {
     let mounted = true;
-    const fetchEvents = async () => {
+    const doFetch = async () => {
       try {
         setLoading(true);
         const response = await fetch('/api/events/pastevents');
@@ -495,8 +500,23 @@ export default function HorizontalTimeline() {
         if (mounted) setLoading(false);
       }
     };
-    fetchEvents();
-    return () => { mounted = false; };
+
+    // Use requestIdleCallback when available (Chrome/Firefox); fall back to setTimeout for Safari
+    let idleId: number | ReturnType<typeof setTimeout>;
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      idleId = (window as any).requestIdleCallback(doFetch, { timeout: 2000 });
+    } else {
+      idleId = setTimeout(doFetch, 0);
+    }
+
+    return () => {
+      mounted = false;
+      if (typeof (window as any).cancelIdleCallback === 'function') {
+        (window as any).cancelIdleCallback(idleId as number);
+      } else {
+        clearTimeout(idleId as ReturnType<typeof setTimeout>);
+      }
+    };
   }, []);
 
   // Handle Resize and Scale
@@ -588,17 +608,17 @@ export default function HorizontalTimeline() {
   // --- VIRTUALIZATION LOGIC ---
   const updateVisibleRange = useCallback(() => {
     if (!containerRef.current) return;
-    
+
     const container = containerRef.current;
     const scrollLeft = container.scrollLeft;
     const viewportWidth = container.clientWidth;
-    
+
     if (viewportWidth === 0) return;
 
     const buffer = Math.max(1200, viewportWidth * 1.5);
     const scaledStart = (scrollLeft - (PADDING_LEFT + centeringOffset)) / scale - buffer;
     const scaledEnd = (scrollLeft + viewportWidth - (PADDING_LEFT + centeringOffset)) / scale + buffer;
-    
+
     setVisibleRange((prev) => {
       if (prev.start === -Infinity || Math.abs(prev.start - scaledStart) > 200 || Math.abs(prev.end - scaledEnd) > 200) {
         return { start: scaledStart, end: scaledEnd };
@@ -617,7 +637,7 @@ export default function HorizontalTimeline() {
 
     resizeObserver.observe(container);
     container.addEventListener('scroll', updateVisibleRange, { passive: true });
-    
+
     const t = setTimeout(updateVisibleRange, 100);
 
     return () => {
@@ -639,7 +659,7 @@ export default function HorizontalTimeline() {
 
   const visibleEventIds = useMemo(() => {
     if (visibleRange.start === -Infinity) {
-       return events.map(e => e._id);
+      return events.map(e => e._id);
     }
 
     const ids: string[] = [];
@@ -648,7 +668,7 @@ export default function HorizontalTimeline() {
       if (!pos) continue;
       const cardLeft = pos.left;
       const cardRight = cardLeft + CARD_WIDTH + 100;
-      
+
       if (cardRight >= visibleRange.start && cardLeft <= visibleRange.end) {
         ids.push(e._id);
       }
@@ -659,7 +679,7 @@ export default function HorizontalTimeline() {
   // Preloading
   useEffect(() => {
     if (!visibleEventIds || visibleEventIds.length === 0) return;
-    const idsToPreload = visibleEventIds.slice(0, 8); 
+    const idsToPreload = visibleEventIds.slice(0, 8);
     const imagesToLoad: string[] = [];
     for (const id of idsToPreload) {
       const ev = eventsById[id];
@@ -677,8 +697,6 @@ export default function HorizontalTimeline() {
     return () => { mounted = false; };
   }, [visibleEventIds, eventsById]);
 
-  if (loading) return <div className="h-[850px] flex items-center justify-center text-white">Loading events...</div>;
-  if (error) return <div className="h-[850px] flex items-center justify-center text-red-400">{error}</div>;
 
   return (
     <div className="relative w-full overflow-hidden">
@@ -686,16 +704,39 @@ export default function HorizontalTimeline() {
         .custom-scrollbar { scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
-      <div className="h-[850px] w-full relative z-0">
+
+      {/* ── ADDED HEADING SECTION ── */}
+      <div className="relative pt-0 pb-0 text-center z-20">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.0, ease: "easeOut" }}
+        >
+          <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter uppercase">
+            OUR <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff6d00] to-amber-500">JOURNEY</span>
+          </h2>
+
+          <div className="mt-6 flex flex-col items-center opacity-90">
+            {/* Text: Wide Spacing, Uppercase, Premium Font Look */}
+            <p className="text-sm md:text-base font-medium tracking-[0.3em] text-neutral-400 uppercase">
+              DEFINING MOMENTS
+            </p>
+
+            {/* Decorative Laser Line */}
+            <div className="mt-4 h-px w-24 bg-gradient-to-r from-transparent via-[#ff6d00] to-transparent opacity-80 shadow-[0_0_10px_#ff6d00]" />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Fix: Increased mobile height from 500px to 700px for proper element spacing */}
+      <div className="h-[700px] md:h-[850px] w-full relative z-0 -mt-[30px]">
         <div ref={containerRef} className="relative h-full overflow-x-auto overflow-y-hidden custom-scrollbar">
           <div
             className="relative h-full"
             style={{
-              // FIXED: The width is now multiplied by scale to match visual content size.
-              // Added 50px buffer so the "TODAY" label isn't cut off.
               width: `${((totalContentWidth + PADDING_LEFT) * scale) + 50}px`,
-              // Margin ensures that if the content is smaller than screen, it centers.
-              margin: '0 auto', 
+              margin: '0 auto',
             }}
           >
             <RulerLayer

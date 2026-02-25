@@ -67,8 +67,8 @@ const DEFAULT_IMAGES: ImageItem[] = [
 ];
 
 const DEFAULTS = {
-  maxVerticalRotationDeg: 90,
-  dragSensitivity: 20,
+  maxVerticalRotationDeg: 10, // Reduced to prevent seeing top/bottom
+  dragSensitivity: 30,
   enlargeTransitionMs: 300,
   segments: 35,
 };
@@ -88,9 +88,9 @@ const getDataNumber = (el: HTMLElement, name: string, fallback: number) => {
 
 function buildItems(pool: ImageItem[], seg: number): ItemDef[] {
   const xCols = Array.from({ length: seg }, (_, i) => -37 + i * 2);
-  // Extended Y range to create a complete sphere instead of just a dome
-  const evenYs = [-8, -6, -4, -2, 0, 2, 4, 6, 8];
-  const oddYs = [-7, -5, -3, -1, 1, 3, 5, 7, 9];
+  // Reduced Y range to prevent top/bottom visibility
+  const evenYs = [-5, -3, -1, 1, 3, 5];
+  const oddYs = [-4, -2, 0, 2, 4, 6];
 
   const coords = xCols.flatMap((x, c) => {
     const ys = c % 2 === 0 ? evenYs : oddYs;
@@ -217,12 +217,12 @@ export default function DomeGallery({
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
-  const applyTransform = (xDeg: number, yDeg: number) => {
+  const applyTransform = useCallback((xDeg: number, yDeg: number) => {
     const el = sphereRef.current;
     if (el) {
       el.style.transform = `translateZ(calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
     }
-  };
+  }, []);
 
   const lockedRadiusRef = useRef<number | null>(null);
 
@@ -315,13 +315,14 @@ export default function DomeGallery({
     openedImageBorderRadius,
     openedImageWidth,
     openedImageHeight,
+    applyTransform,
   ]);
 
   useEffect(() => {
     applyTransform(rotationRef.current.x, rotationRef.current.y);
-  }, []);
+  }, [applyTransform]);
 
-  // Auto-rotation effect
+  // Optimized auto-rotation effect
   useEffect(() => {
     let lastTime = performance.now();
 
@@ -351,7 +352,7 @@ export default function DomeGallery({
         cancelAnimationFrame(autoRotateRAF.current);
       }
     };
-  }, []);
+  }, [applyTransform]);
 
   const stopInertia = useCallback(() => {
     if (inertiaRAF.current) {
@@ -394,7 +395,7 @@ export default function DomeGallery({
       stopInertia();
       inertiaRAF.current = requestAnimationFrame(step);
     },
-    [dragDampening, maxVerticalRotationDeg, stopInertia],
+    [dragDampening, maxVerticalRotationDeg, stopInertia, applyTransform],
   );
 
   useGesture(
@@ -801,7 +802,10 @@ export default function DomeGallery({
     }
     
     .sphere-root * { box-sizing: border-box; }
-    .sphere, .sphere-item, .item__image { transform-style: preserve-3d; }
+    .sphere, .sphere-item, .item__image { 
+      transform-style: preserve-3d; 
+      will-change: transform;
+    }
     
     @keyframes subtleWiggle {
       0%, 100% {
@@ -832,7 +836,6 @@ export default function DomeGallery({
     
     .sphere {
       transform: translateZ(calc(var(--radius) * -1));
-      will-change: transform;
       position: absolute;
     }
     
@@ -847,6 +850,7 @@ export default function DomeGallery({
       margin: auto;
       transform-origin: 50% 50%;
       backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
       transition: transform 300ms;
       transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2)) + var(--rot-y-delta, 0deg))) 
                  rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2)) + var(--rot-x-delta, 0deg))) 
@@ -1034,7 +1038,7 @@ export default function DomeGallery({
                       fill
                       draggable={false}
                       sizes="(max-width: 640px) 85vw, (max-width: 1024px) 500px, 550px"
-                      quality={85}
+                      quality={75}
                       loading="lazy"
                       className="w-full h-full object-cover pointer-events-none"
                       style={{

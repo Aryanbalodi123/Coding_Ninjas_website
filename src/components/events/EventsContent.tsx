@@ -1,30 +1,44 @@
 "use client";
 
+import { lazy, Suspense } from "react";
 import { EventsHero } from "./EventsHero";
-import HorizontalTimeline from "./HorizontalTimeline";
 import {
   UpcomingEventsTeaser,
   UpcomingEventCardData,
 } from "./UpcomingEventsTeaser";
-import { EventStatistics } from "./EventStatistics";
-import { EventGallery } from "./EventGallery";
+
+// Code-split below-fold sections — they load after the hero paints
+const HorizontalTimeline = lazy(() => import("./HorizontalTimeline"));
+const EventStatistics = lazy(() => import("./EventStatistics"));
+const EventGallery = lazy(() =>
+  import("./EventGallery").then((m) => ({ default: m.EventGallery }))
+);
 
 export const EventsContent = ({
   upcomingEvents,
 }: {
   upcomingEvents: UpcomingEventCardData[];
 }) => (
-  <div className=" text-white">
-    {/* New 3D Carousel Hero */}
+  <div className="text-white">
+    {/* Above fold — eagerly loaded */}
     <EventsHero />
-    
-    {/* New Horizontal Timeline */}
-    <HorizontalTimeline />
-        <EventStatistics />
-    <EventGallery />
-    {/* Existing Upcoming Events (fetched from server) */}
+
+    {/* Below fold — deferred JS chunks */}
+    <Suspense fallback={null}>
+      <HorizontalTimeline />
+    </Suspense>
+
+    <Suspense fallback={null}>
+      <EventStatistics />
+    </Suspense>
+
+    <Suspense fallback={null}>
+      <EventGallery />
+    </Suspense>
+
+    {/* Upcoming Events (data fetched server-side) */}
     <div className="container-grid pb-16 sm:pb-20 lg:pb-24 pt-20">
-       <UpcomingEventsTeaser events={upcomingEvents} />
+      <UpcomingEventsTeaser events={upcomingEvents} />
     </div>
   </div>
 );

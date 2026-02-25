@@ -802,7 +802,7 @@ export default function AdminDashboard() {
                     : "text-gray-400 hover:text-white hover:scale-105"
                 }`}
               >
-                Upcoming Events
+                Events
               </button>
             </div>
           </div>
